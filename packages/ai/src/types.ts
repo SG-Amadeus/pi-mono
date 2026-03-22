@@ -12,7 +12,8 @@ export type KnownApi =
 	| "bedrock-converse-stream"
 	| "google-generative-ai"
 	| "google-gemini-cli"
-	| "google-vertex";
+	| "google-vertex"
+	| "deepseek-completions";
 
 export type Api = KnownApi | (string & {});
 
@@ -30,6 +31,7 @@ export type KnownProvider =
 	| "xai"
 	| "groq"
 	| "cerebras"
+	| "deepseek"
 	| "openrouter"
 	| "vercel-ai-gateway"
 	| "zai"

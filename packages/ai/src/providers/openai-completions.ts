@@ -55,6 +55,7 @@ function hasToolHistory(messages: Message[]): boolean {
 export interface OpenAICompletionsOptions extends StreamOptions {
 	toolChoice?: "auto" | "none" | "required" | { type: "function"; function: { name: string } };
 	reasoningEffort?: "minimal" | "low" | "medium" | "high" | "xhigh";
+	extraBody?: Record<string, unknown>;
 }
 
 export const streamOpenAICompletions: StreamFunction<"openai-completions", OpenAICompletionsOptions> = (
@@ -314,13 +315,21 @@ export const streamSimpleOpenAICompletions: StreamFunction<"openai-completions",
 	}
 
 	const base = buildBaseOptions(model, options, apiKey);
-	const reasoningEffort = supportsXhigh(model) ? options?.reasoning : clampReasoning(options?.reasoning);
+	let reasoningEffort = supportsXhigh(model) ? options?.reasoning : clampReasoning(options?.reasoning);
 	const toolChoice = (options as OpenAICompletionsOptions | undefined)?.toolChoice;
+
+	// DeepSeek uses extra_body.thinking for reasoning mode
+	let extraBody: Record<string, unknown> | undefined;
+	if (model.provider === "deepseek" && options?.reasoning) {
+		extraBody = { thinking: { type: "enabled" } };
+		reasoningEffort = undefined;
+	}
 
 	return streamOpenAICompletions(model, context, {
 		...base,
 		reasoningEffort,
 		toolChoice,
+		extraBody,
 	} satisfies OpenAICompletionsOptions);
 };
 
@@ -404,7 +413,10 @@ function buildParams(model: Model<"openai-completions">, context: Context, optio
 		params.tool_choice = options.toolChoice;
 	}
 
-	if (compat.thinkingFormat === "zai" && model.reasoning) {
+	// If thinking is already set via extra_body (e.g., DeepSeek), skip standard thinking logic
+	if (options?.extraBody?.thinking) {
+		// DeepSeek thinking mode already set via extra_body, skip standard thinking logic
+	} else if (compat.thinkingFormat === "zai" && model.reasoning) {
 		(params as any).enable_thinking = !!options?.reasoningEffort;
 	} else if (compat.thinkingFormat === "qwen" && model.reasoning) {
 		(params as any).enable_thinking = !!options?.reasoningEffort;
@@ -435,6 +447,10 @@ function buildParams(model: Model<"openai-completions">, context: Context, optio
 			if (routing.order) gatewayOptions.order = routing.order;
 			(params as any).providerOptions = { gateway: gatewayOptions };
 		}
+	}
+
+	if (options?.extraBody) {
+		(params as any).extra_body = options.extraBody;
 	}
 
 	return params;
