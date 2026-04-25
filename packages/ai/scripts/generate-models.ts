@@ -645,8 +645,7 @@ async function generateModels() {
 	const modelsDevModels = await loadModelsDevData();
 	const openRouterModels = await fetchOpenRouterModels();
 	const aiGatewayModels = await fetchAiGatewayModels();
-
-	// Static DeepSeek V4 models (not available via API fetch)
+	// DeepSeek V4 models (static, not available via API fetch)
 	const deepSeekModels: Model<any>[] = [
 		{
 			id: "deepseek-v4-flash",
