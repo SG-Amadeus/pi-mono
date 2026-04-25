@@ -224,13 +224,6 @@ describe("Tool Call Without Result Tests", () => {
 		});
 	});
 
-	describe.skipIf(!process.env.DEEPSEEK_API_KEY)("DeepSeek Provider", () => {
-		const model = getModel("deepseek", "deepseek-chat");
-
-		it("should filter out tool calls without corresponding tool results", { retry: 3, timeout: 30000 }, async () => {
-			await testToolCallWithoutResult(model);
-		});
-	});
 	// =========================================================================
 	// OAuth-based providers (credentials from ~/.pi/agent/oauth.json)
 	// =========================================================================

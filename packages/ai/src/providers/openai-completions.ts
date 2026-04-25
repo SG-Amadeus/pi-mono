@@ -55,7 +55,6 @@ function hasToolHistory(messages: Message[]): boolean {
 export interface OpenAICompletionsOptions extends StreamOptions {
 	toolChoice?: "auto" | "none" | "required" | { type: "function"; function: { name: string } };
 	reasoningEffort?: "minimal" | "low" | "medium" | "high" | "xhigh";
-	extraBody?: Record<string, unknown>;
 }
 
 export const streamOpenAICompletions: StreamFunction<"openai-completions", OpenAICompletionsOptions> = (
@@ -315,21 +314,13 @@ export const streamSimpleOpenAICompletions: StreamFunction<"openai-completions",
 	}
 
 	const base = buildBaseOptions(model, options, apiKey);
-	let reasoningEffort = supportsXhigh(model) ? options?.reasoning : clampReasoning(options?.reasoning);
+	const reasoningEffort = supportsXhigh(model) ? options?.reasoning : clampReasoning(options?.reasoning);
 	const toolChoice = (options as OpenAICompletionsOptions | undefined)?.toolChoice;
-
-	// DeepSeek uses extra_body.thinking for reasoning mode
-	let extraBody: Record<string, unknown> | undefined;
-	if (model.provider === "deepseek" && options?.reasoning) {
-		extraBody = { thinking: { type: "enabled" } };
-		reasoningEffort = undefined;
-	}
 
 	return streamOpenAICompletions(model, context, {
 		...base,
 		reasoningEffort,
 		toolChoice,
-		extraBody,
 	} satisfies OpenAICompletionsOptions);
 };
 
@@ -413,10 +404,7 @@ function buildParams(model: Model<"openai-completions">, context: Context, optio
 		params.tool_choice = options.toolChoice;
 	}
 
-	// If thinking is already set via extra_body (e.g., DeepSeek), skip standard thinking logic
-	if (options?.extraBody?.thinking) {
-		// DeepSeek thinking mode already set via extra_body, skip standard thinking logic
-	} else if (compat.thinkingFormat === "zai" && model.reasoning) {
+	if (compat.thinkingFormat === "zai" && model.reasoning) {
 		(params as any).enable_thinking = !!options?.reasoningEffort;
 	} else if (compat.thinkingFormat === "qwen" && model.reasoning) {
 		(params as any).enable_thinking = !!options?.reasoningEffort;
@@ -447,10 +435,6 @@ function buildParams(model: Model<"openai-completions">, context: Context, optio
 			if (routing.order) gatewayOptions.order = routing.order;
 			(params as any).providerOptions = { gateway: gatewayOptions };
 		}
-	}
-
-	if (options?.extraBody) {
-		(params as any).extra_body = options.extraBody;
 	}
 
 	return params;
@@ -591,17 +575,24 @@ export function convertMessages(
 
 			// Handle thinking blocks
 			const thinkingBlocks = msg.content.filter((b) => b.type === "thinking") as ThinkingContent[];
-			// Filter out empty thinking blocks to avoid API validation errors
-			const nonEmptyThinkingBlocks = thinkingBlocks.filter((b) => b.thinking && b.thinking.trim().length > 0);
+			// Keep blocks that have non-empty thinking text or have a thinkingSignature
+			// (signature is required for DeepSeek reasoning_content echo even when empty)
+			const nonEmptyThinkingBlocks = thinkingBlocks.filter(
+				(b) => b.thinkingSignature || (b.thinking && b.thinking.trim().length > 0),
+			);
 			if (nonEmptyThinkingBlocks.length > 0) {
 				if (compat.requiresThinkingAsText) {
 					// Convert thinking blocks to plain text (no tags to avoid model mimicking them)
-					const thinkingText = nonEmptyThinkingBlocks.map((b) => b.thinking).join("\n\n");
-					const textContent = assistantMsg.content as Array<{ type: "text"; text: string }> | null;
-					if (textContent) {
-						textContent.unshift({ type: "text", text: thinkingText });
-					} else {
-						assistantMsg.content = [{ type: "text", text: thinkingText }];
+					// Only use blocks with actual text content for text conversion
+					const textBlocks = nonEmptyThinkingBlocks.filter((b) => b.thinking && b.thinking.trim().length > 0);
+					if (textBlocks.length > 0) {
+						const thinkingText = textBlocks.map((b) => b.thinking).join("\n\n");
+						const textContent = assistantMsg.content as Array<{ type: "text"; text: string }> | null;
+						if (textContent) {
+							textContent.unshift({ type: "text", text: thinkingText });
+						} else {
+							assistantMsg.content = [{ type: "text", text: thinkingText }];
+						}
 					}
 				} else {
 					// Use the signature from the first thinking block if available (for llama.cpp server + gpt-oss)

@@ -52,11 +52,11 @@ export const KEYBINDINGS = {
 	"app.exit": { defaultKeys: "ctrl+d", description: "Exit when editor is empty" },
 	"app.suspend": { defaultKeys: "ctrl+z", description: "Suspend to background" },
 	"app.thinking.cycle": {
-		defaultKeys: "shift+tab",
+		defaultKeys: [],
 		description: "Cycle thinking level",
 	},
 	"app.model.cycleForward": {
-		defaultKeys: "ctrl+p",
+		defaultKeys: ["ctrl+p", "shift+tab"],
 		description: "Cycle to next model",
 	},
 	"app.model.cycleBackward": {

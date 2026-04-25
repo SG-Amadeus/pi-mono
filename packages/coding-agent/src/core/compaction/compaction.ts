@@ -109,6 +109,7 @@ export interface CompactionSettings {
 	enabled: boolean;
 	reserveTokens: number;
 	keepRecentTokens: number;
+	compactThreshold?: number;
 }
 
 export const DEFAULT_COMPACTION_SETTINGS: CompactionSettings = {
@@ -211,6 +212,9 @@ export function estimateContextTokens(messages: AgentMessage[]): ContextUsageEst
  */
 export function shouldCompact(contextTokens: number, contextWindow: number, settings: CompactionSettings): boolean {
 	if (!settings.enabled) return false;
+	if (settings.compactThreshold !== undefined) {
+		return contextTokens > contextWindow * settings.compactThreshold;
+	}
 	return contextTokens > contextWindow - settings.reserveTokens;
 }
 

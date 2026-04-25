@@ -13,7 +13,6 @@ import { AssistantMessageEventStream } from "../utils/event-stream.js";
 import type { BedrockOptions } from "./amazon-bedrock.js";
 import type { AnthropicOptions } from "./anthropic.js";
 import type { AzureOpenAIResponsesOptions } from "./azure-openai-responses.js";
-import type { DeepSeekOptions } from "./deepseek.js";
 import type { GoogleOptions } from "./google.js";
 import type { GoogleGeminiCliOptions } from "./google-gemini-cli.js";
 import type { GoogleVertexOptions } from "./google-vertex.js";
@@ -93,19 +92,6 @@ interface BedrockProviderModule {
 	) => AsyncIterable<AssistantMessageEvent>;
 }
 
-interface DeepSeekProviderModule {
-	streamDeepSeek: (
-		model: Model<"deepseek-completions">,
-		context: Context,
-		options?: DeepSeekOptions,
-	) => AsyncIterable<AssistantMessageEvent>;
-	streamSimpleDeepSeek: (
-		model: Model<"deepseek-completions">,
-		context: Context,
-		options?: SimpleStreamOptions,
-	) => AsyncIterable<AssistantMessageEvent>;
-}
-
 const importNodeOnlyProvider = (specifier: string): Promise<unknown> => import(specifier);
 
 let anthropicProviderModulePromise:
@@ -140,9 +126,6 @@ let bedrockProviderModuleOverride:
 	| undefined;
 let bedrockProviderModulePromise:
 	| Promise<LazyProviderModule<"bedrock-converse-stream", BedrockOptions, SimpleStreamOptions>>
-	| undefined;
-let deepseekProviderModulePromise:
-	| Promise<LazyProviderModule<"deepseek-completions", DeepSeekOptions, SimpleStreamOptions>>
 	| undefined;
 
 export function setBedrockProviderModule(module: BedrockProviderModule): void {
@@ -359,19 +342,6 @@ function loadBedrockProviderModule(): Promise<
 	return bedrockProviderModulePromise;
 }
 
-function loadDeepSeekProviderModule(): Promise<
-	LazyProviderModule<"deepseek-completions", DeepSeekOptions, SimpleStreamOptions>
-> {
-	deepseekProviderModulePromise ||= import("./deepseek.js").then((module) => {
-		const provider = module as DeepSeekProviderModule;
-		return {
-			stream: provider.streamDeepSeek,
-			streamSimple: provider.streamSimpleDeepSeek,
-		};
-	});
-	return deepseekProviderModulePromise;
-}
-
 export const streamAnthropic = createLazyStream(loadAnthropicProviderModule);
 export const streamSimpleAnthropic = createLazySimpleStream(loadAnthropicProviderModule);
 export const streamAzureOpenAIResponses = createLazyStream(loadAzureOpenAIResponsesProviderModule);
@@ -392,8 +362,6 @@ export const streamOpenAIResponses = createLazyStream(loadOpenAIResponsesProvide
 export const streamSimpleOpenAIResponses = createLazySimpleStream(loadOpenAIResponsesProviderModule);
 const streamBedrockLazy = createLazyStream(loadBedrockProviderModule);
 const streamSimpleBedrockLazy = createLazySimpleStream(loadBedrockProviderModule);
-const streamDeepSeekLazy = createLazyStream(loadDeepSeekProviderModule);
-const streamSimpleDeepSeekLazy = createLazySimpleStream(loadDeepSeekProviderModule);
 
 export function registerBuiltInApiProviders(): void {
 	registerApiProvider({
@@ -454,12 +422,6 @@ export function registerBuiltInApiProviders(): void {
 		api: "bedrock-converse-stream",
 		stream: streamBedrockLazy,
 		streamSimple: streamSimpleBedrockLazy,
-	});
-
-	registerApiProvider({
-		api: "deepseek-completions",
-		stream: streamDeepSeekLazy,
-		streamSimple: streamSimpleDeepSeekLazy,
 	});
 }
 

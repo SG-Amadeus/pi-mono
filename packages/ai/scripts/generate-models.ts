@@ -55,7 +55,6 @@ const COPILOT_STATIC_HEADERS = {
 
 const AI_GATEWAY_MODELS_URL = "https://ai-gateway.vercel.sh/v1";
 const AI_GATEWAY_BASE_URL = "https://ai-gateway.vercel.sh";
-const DEEPSEEK_BASE_URL = "https://api.deepseek.com/v1";
 
 async function fetchOpenRouterModels(): Promise<Model<any>[]> {
 	try {
@@ -171,101 +170,6 @@ async function fetchAiGatewayModels(): Promise<Model<any>[]> {
 		console.error("Failed to fetch Vercel AI Gateway models:", error);
 		return [];
 	}
-}
-async function fetchDeepSeekModels(): Promise<Model<any>[]> {
-  try {
-    console.log("Fetching models from DeepSeek API...");
-    const apiKey = process.env.DEEPSEEK_API_KEY;
-    const headers: Record<string, string> = apiKey ? { Authorization: `Bearer ${apiKey}` } : {};
-    const response = await fetch(DEEPSEEK_BASE_URL + "/models", { headers });
-    if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    const data = await response.json();
-
-    const models: Model<any>[] = [];
-
-    // Mapping of known model IDs to specifications (context window, max tokens)
-    const MODEL_SPECS: Record<string, { contextWindow: number; maxTokens: number }> = {
-      "deepseek-chat": { contextWindow: 131072, maxTokens: 8192 },
-      "deepseek-reasoner": { contextWindow: 131072, maxTokens: 32768 },
-    };
-
-    // Assuming OpenAI-compatible response format: { data: [...] }
-    const items = Array.isArray(data.data) ? data.data : [];
-    if (items.length === 0) throw new Error('No models returned from DeepSeek API');
-    for (const model of items) {
-      // Only include models that support tools? We don't have that info, include all.
-      // Filter out if model.id doesn't contain "deepseek"? maybe not needed.
-      const reasoning = model.id.includes("reasoner");
-      const input: ("text" | "image")[] = ["text"];
-      // TODO: detect image support if model capabilities include vision
-
-      const specs = MODEL_SPECS[model.id] || { contextWindow: 131072, maxTokens: 4096 };
-      
-      models.push({
-        id: model.id,
-        name: model.name || model.id,
-        api: "openai-completions",
-        provider: "deepseek",
-        baseUrl: DEEPSEEK_BASE_URL,
-        reasoning,
-        input,
-        cost: {
-          input: 0,
-          output: 0,
-          cacheRead: 0,
-          cacheWrite: 0,
-        },
-        contextWindow: specs.contextWindow,
-        maxTokens: specs.maxTokens,
-        compat: {
-          supportsStore: false,
-          supportsDeveloperRole: false,
-        },
-      });
-    }
-
-
-
-    console.log("Fetched " + models.length + " models from DeepSeek");
-    return models;
-  } catch (error) {
-    console.error("Failed to fetch DeepSeek models:", error);
-    // Return default models as fallback
-    return [
-      {
-        id: "deepseek-chat",
-        name: "DeepSeek Chat",
-        api: "openai-completions",
-        provider: "deepseek",
-        baseUrl: DEEPSEEK_BASE_URL,
-        reasoning: false,
-        input: ["text"],
-        cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-        contextWindow: 131072,
-        maxTokens: 8192,
-        compat: {
-          supportsStore: false,
-          supportsDeveloperRole: false,
-        },
-      },
-      {
-        id: "deepseek-reasoner",
-        name: "DeepSeek Reasoner",
-        api: "openai-completions",
-        provider: "deepseek",
-        baseUrl: DEEPSEEK_BASE_URL,
-        reasoning: true,
-        input: ["text"],
-        cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-        contextWindow: 131072,
-        maxTokens: 32768,
-        compat: {
-          supportsStore: false,
-          supportsDeveloperRole: false,
-        },
-      },
-    ];
-  }
 }
 
 async function loadModelsDevData(): Promise<Model<any>[]> {
@@ -741,7 +645,36 @@ async function generateModels() {
 	const modelsDevModels = await loadModelsDevData();
 	const openRouterModels = await fetchOpenRouterModels();
 	const aiGatewayModels = await fetchAiGatewayModels();
-	const deepSeekModels = await fetchDeepSeekModels();
+
+	// Static DeepSeek V4 models (not available via API fetch)
+	const deepSeekModels: Model<any>[] = [
+		{
+			id: "deepseek-v4-flash",
+			name: "DeepSeek V4 Flash",
+			api: "openai-completions",
+			provider: "deepseek",
+			baseUrl: "https://api.deepseek.com/v1",
+			reasoning: true,
+			input: ["text"],
+			cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+			contextWindow: 1048576,
+			maxTokens: 393216,
+			compat: { supportsStore: false, supportsDeveloperRole: false },
+		},
+		{
+			id: "deepseek-v4-pro",
+			name: "DeepSeek V4 Pro",
+			api: "openai-completions",
+			provider: "deepseek",
+			baseUrl: "https://api.deepseek.com/v1",
+			reasoning: true,
+			input: ["text"],
+			cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+			contextWindow: 1048576,
+			maxTokens: 393216,
+			compat: { supportsStore: false, supportsDeveloperRole: false },
+		},
+	];
 
 	// Combine models (models.dev has priority)
 	const allModels = [...modelsDevModels, ...openRouterModels, ...aiGatewayModels, ...deepSeekModels].filter(

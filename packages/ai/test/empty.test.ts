@@ -448,26 +448,6 @@ describe("AI Providers Empty Message Tests", () => {
 		});
 	});
 
-	// describe.skipIf(!process.env.DEEPSEEK_API_KEY)("DeepSeek Provider Empty Messages", () => {
-	// 	const llm = getModel("deepseek", "deepseek-chat");
-
-	// 	it("should handle empty content array", { retry: 3, timeout: 30000 }, async () => {
-	// 		await testEmptyMessage(llm);
-	// 	});
-
-	// 	it("should handle empty string content", { retry: 3, timeout: 30000 }, async () => {
-	// 		await testEmptyStringMessage(llm);
-	// 	});
-
-	// 	it("should handle whitespace-only content", { retry: 3, timeout: 30000 }, async () => {
-	// 		await testWhitespaceOnlyMessage(llm);
-	// 	});
-
-	// 	it("should handle empty assistant message in conversation", { retry: 3, timeout: 30000 }, async () => {
-	// 		await testEmptyAssistantMessage(llm);
-	// 	});
-	// });
-
 	// =========================================================================
 	// OAuth-based providers (credentials from ~/.pi/agent/oauth.json)
 	// =========================================================================
